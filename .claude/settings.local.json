@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(ls:*)",
+      "Bash(findstr:*)",
+      "Bash(dotnet --version)",
+      "Bash(dotnet new:*)",
+      "Bash(dotnet sln:*)",
+      "Bash(dotnet add package:*)",
+      "Bash(cat:*)",
+      "Bash(dotnet build)",
+      "Bash(timeout 15 dotnet run)",
+      "Bash(railway init:*)",
+      "Bash(railway variables set:*)",
+      "Bash(railway service:*)",
+      "Bash(railway up:*)",
+      "Bash(railway status:*)",
+      "Bash(railway link:*)",
+      "Bash(railway logs:*)",
+      "Bash(railway domain:*)",
+      "Bash(curl:*)",
+      "Bash(python -c \"import sys, json; data = json.load(sys.stdin); print(''''Status:'''', data[''''environments''''][''''edges''''][0][''''node''''][''''serviceInstances''''][''''edges''''][0][''''node''''][''''latestDeployment''''][''''status''''])\")",
+      "Bash(python:*)",
+      "Bash(gh auth:*)",
+      "Bash(git init:*)",
+      "Bash(git config:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
