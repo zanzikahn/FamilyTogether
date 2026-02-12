@@ -1,17 +1,18 @@
 # CLAUDE.md - Developer Guide
 ## FamilyTogether - Local-First SaaS Platform
 
-**Version**: 1.0
-**Date**: February 10, 2026
+**Version**: 1.1
+**Date**: February 12, 2026
+**Last Updated**: Railway deployment & .NET 8.0 upgrade
 
 ---
 
 ## 🎯 Project Overview
 
 This is a **local-first SaaS platform** with three components:
-- **API**: ASP.NET Core 6.0, deployed on Railway.app
+- **API**: ASP.NET Core 8.0 (LTS), deployed on Railway.app
 - **SPA**: Vanilla JavaScript with IndexedDB, deployed on Netlify
-- **WPF**: .NET 6.0 desktop app with SQLite for Windows
+- **WPF**: .NET 8.0 desktop app with SQLite for Windows
 
 **Core Principle**: Data lives on the client first, syncs to cloud when online. Offline functionality is NOT optional - it's the primary design.
 
@@ -26,7 +27,7 @@ This is a **local-first SaaS platform** with three components:
 git clone <repository-url>
 cd FamilyTogether
 
-# Install .NET SDK 6.0+
+# Install .NET SDK 8.0+ (LTS)
 # Download from: https://dot.net
 
 # Create .NET solution
@@ -42,15 +43,15 @@ dotnet sln add FamilyTogether.WPF
 
 # Install API dependencies
 cd FamilyTogether.API
-dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL --version 6.0.8
-dotnet add package Microsoft.AspNetCore.Authentication.JwtBearer --version 6.0.12
-dotnet add package Microsoft.EntityFrameworkCore.Design --version 6.0.12
-dotnet add package Supabase --version 0.9.3
+dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL --version 8.0.0
+dotnet add package Microsoft.AspNetCore.Authentication.JwtBearer --version 8.0.0
+dotnet add package Microsoft.EntityFrameworkCore.Design --version 8.0.0
+dotnet add package Supabase --version 1.0.0
 
 # Install WPF dependencies
 cd ../FamilyTogether.WPF
-dotnet add package Microsoft.EntityFrameworkCore.Sqlite --version 6.0.12
-dotnet add package Microsoft.EntityFrameworkCore.Design --version 6.0.12
+dotnet add package Microsoft.EntityFrameworkCore.Sqlite --version 8.0.0
+dotnet add package Microsoft.EntityFrameworkCore.Design --version 8.0.0
 dotnet add package Newtonsoft.Json --version 13.0.3
 
 # Create SPA directory structure
@@ -767,9 +768,9 @@ if (rejected.status === 'conflict') {
 ### 6. Technology Stack (FIXED)
 
 **DO NOT CHANGE** without approval:
-- Backend: ASP.NET Core 6.0
+- Backend: ASP.NET Core 8.0 (LTS)
 - Database: Supabase PostgreSQL
-- Auth: Supabase Auth
+- Auth: Supabase Auth (new publishable/secret key format)
 - API Hosting: Railway.app
 - SPA Hosting: Netlify
 - SPA Storage: IndexedDB
@@ -975,6 +976,81 @@ modelBuilder.Entity<TaskEntity>()
 var tasks = await _context.Tasks.ToListAsync();
 ```
 
+### 11. Blocking Async Calls in Constructors
+
+**Problem**: Using `.Wait()` or `.Result` in constructors causes deadlocks in ASP.NET Core
+
+**Solution**: Use lazy initialization pattern
+```csharp
+// BAD - Causes deadlock during dependency injection
+public AuthService(IConfiguration config)
+{
+    _supabase = new Supabase.Client(url, key);
+    _supabase.InitializeAsync().Wait(); // ❌ DEADLOCK!
+}
+
+// GOOD - Lazy initialization
+private bool _initialized = false;
+private readonly SemaphoreSlim _initLock = new SemaphoreSlim(1, 1);
+
+public AuthService(IConfiguration config)
+{
+    _supabase = new Supabase.Client(url, key);
+    // No blocking call!
+}
+
+private async Task EnsureInitializedAsync()
+{
+    if (_initialized) return;
+
+    await _initLock.WaitAsync();
+    try
+    {
+        if (!_initialized)
+        {
+            await _supabase.InitializeAsync();
+            _initialized = true;
+        }
+    }
+    finally
+    {
+        _initLock.Release();
+    }
+}
+
+public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
+{
+    await EnsureInitializedAsync(); // ✅ Initialize on first use
+    // ... rest of method
+}
+```
+
+### 12. Railway Build Cache Issues
+
+**Problem**: Railway aggressively caches builds, making it difficult to deploy updates
+
+**Solution**: If code changes aren't deploying after multiple attempts:
+1. **Recreate the service** from scratch (fastest solution)
+2. Remove conflicting config files (`railway.toml` and `nixpacks.toml`)
+3. Let Railway auto-detect .NET version
+4. Manually configure health check: `/health` with 100s timeout
+5. Set **Root Directory** to `FamilyTogether.API` in Railway settings
+
+**Never do this**: Don't create both `railway.toml` and `nixpacks.toml` - they conflict
+
+### 13. PostgreSQL Connection String Formatting
+
+**Problem**: Spaces in property names cause "Couldn't set SSL mode" errors
+
+**Solution**: Use no spaces in connection string properties
+```bash
+# BAD - Has spaces
+Host=...;SSL Mode=Require;Trust Server Certificate=true
+
+# GOOD - No spaces
+Host=...;SslMode=Require;TrustServerCertificate=true
+```
+
 ---
 
 ## 🔧 Developer Environment Quirks
@@ -989,10 +1065,15 @@ var tasks = await _context.Tasks.ToListAsync();
 ### Railway Deployment
 
 - Uses Nixpacks builder (automatic .NET detection)
-- Environment variables set via CLI or dashboard
+- **Root Directory**: Must be set to `FamilyTogether.API` in settings
+- **Health Check**: Set to `/health` with 100s timeout manually (if no railway.toml)
+- Environment variables set via CLI or dashboard (changes require redeploy)
 - Logs accessed via `railway logs` command
 - Free tier: $5 credit/month, 512MB RAM
-- Health check endpoint MUST be `/health`
+- **Build Cache**: Extremely aggressive - if updates don't deploy after 3+ tries, recreate the service
+- **Config Files**: Don't use both `railway.toml` and `nixpacks.toml` - they conflict
+- **Port**: App must listen on `Environment.GetEnvironmentVariable("PORT")` (usually 8080)
+- **Production URL**: https://familytogether-production.up.railway.app
 
 ### Netlify Deployment
 
@@ -1004,11 +1085,13 @@ var tasks = await _context.Tasks.ToListAsync();
 
 ### Supabase Quirks
 
+- **New Key Format** (as of 2025): Supabase now uses `sb_publishable__*` (client-side) and `sb_secret_*` (server-side) instead of legacy `anon` keys
 - RLS policies MUST be correct or queries silently fail
 - Connection pooling: max 60 connections on free tier
 - JWT secret changes require API redeployment
-- Anonymous key is PUBLIC - safe to expose
-- Service role key is SECRET - never expose to client
+- Publishable key is PUBLIC - safe to expose to SPA
+- Secret key is SECRET - only use server-side (API)
+- For server-side operations (API), use the **publishable key**, not the secret key (unless doing admin operations)
 
 ---
 
