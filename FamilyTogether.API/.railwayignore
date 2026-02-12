@@ -1,0 +1,6 @@
+# Railway ignore file
+*.log
+*.tmp
+bin/
+obj/
+.vs/
