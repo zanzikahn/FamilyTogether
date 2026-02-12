@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/Zanzi/TOOLS/FamilyTogether/**)",
+      "Bash(start index.html)",
+      "Bash(node:*)",
+      "Read(//c/Users/Zanzi/Downloads/**)",
+      "Bash(start test_security.html)",
+      "Bash(powershell:*)",
+      "Bash(dir)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
