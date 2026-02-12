@@ -30,6 +30,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // JWT Authentication using Supabase JWKS
 var jwtDiscoveryUrl = builder.Configuration["Supabase:JwtDiscoveryUrl"];
+var jwtIssuer = builder.Configuration["Jwt:Issuer"];
+var jwtAudience = builder.Configuration["Jwt:Audience"];
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -37,10 +40,10 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.Authority = builder.Configuration["Jwt:Issuer"];
-    options.Audience = builder.Configuration["Jwt:Audience"];
-    options.MetadataAddress = jwtDiscoveryUrl!;
-    options.RequireHttpsMetadata = true;
+    // Use MetadataAddress directly (don't set Authority to avoid conflicts)
+    options.MetadataAddress = jwtDiscoveryUrl;
+    options.RequireHttpsMetadata = false; // Railway may have network issues with HTTPS metadata
+    options.SaveToken = true;
 
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -48,9 +51,29 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
         ClockSkew = TimeSpan.FromMinutes(5)
+    };
+
+    // Add event handlers for debugging
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            Console.WriteLine($"JWT Authentication failed: {context.Exception.Message}");
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
+        {
+            Console.WriteLine("JWT Token validated successfully");
+            return Task.CompletedTask;
+        },
+        OnMessageReceived = context =>
+        {
+            Console.WriteLine("JWT Message received");
+            return Task.CompletedTask;
+        }
     };
 });
 
