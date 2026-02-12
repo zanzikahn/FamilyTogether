@@ -47,9 +47,9 @@ export async function migrateLocalStorageToIndexedDB() {
         // Get localStorage data
         const stored = localStorage.getItem(STORAGE_KEY);
         if (!stored) {
-            console.log('ℹ️ Migration: No localStorage data found, marking as completed');
-            markMigrationCompleted();
-            return { success: true, noData: true };
+            console.log('ℹ️ Migration: No localStorage data found, skipping (will retry later if data appears)');
+            // DON'T mark as completed - allow future migration if data appears
+            return { success: true, noData: true, skipped: false };
         }
 
         const oldData = JSON.parse(stored);
