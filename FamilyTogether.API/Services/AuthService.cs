@@ -14,6 +14,8 @@ namespace FamilyTogether.API.Services
         private readonly IConfiguration _configuration;
         private readonly ILogger<AuthService> _logger;
         private readonly Supabase.Client _supabase;
+        private bool _supabaseInitialized = false;
+        private readonly SemaphoreSlim _initLock = new SemaphoreSlim(1, 1);
 
         public AuthService(
             AppDbContext context,
@@ -24,7 +26,7 @@ namespace FamilyTogether.API.Services
             _configuration = configuration;
             _logger = logger;
 
-            // Initialize Supabase client
+            // Initialize Supabase client (but don't call InitializeAsync in constructor - prevents deadlock)
             var options = new Supabase.SupabaseOptions
             {
                 AutoConnectRealtime = false
@@ -35,14 +37,32 @@ namespace FamilyTogether.API.Services
                 _configuration["Supabase:PublishableKey"]!,
                 options
             );
+        }
 
-            _supabase.InitializeAsync().Wait();
+        private async Task EnsureSupabaseInitializedAsync()
+        {
+            if (_supabaseInitialized) return;
+
+            await _initLock.WaitAsync();
+            try
+            {
+                if (!_supabaseInitialized)
+                {
+                    await _supabase.InitializeAsync();
+                    _supabaseInitialized = true;
+                }
+            }
+            finally
+            {
+                _initLock.Release();
+            }
         }
 
         public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
         {
             try
             {
+                await EnsureSupabaseInitializedAsync();
                 _logger.LogInformation("Registering new user: {Email}", request.Email);
 
                 // 1. Register user with Supabase Auth
@@ -139,6 +159,7 @@ namespace FamilyTogether.API.Services
         {
             try
             {
+                await EnsureSupabaseInitializedAsync();
                 _logger.LogInformation("Login attempt for user: {Email}", request.Email);
 
                 // 1. Sign in with Supabase Auth
@@ -206,6 +227,7 @@ namespace FamilyTogether.API.Services
         {
             try
             {
+                await EnsureSupabaseInitializedAsync();
                 _logger.LogInformation("Logout request received");
 
                 // Sign out from Supabase
