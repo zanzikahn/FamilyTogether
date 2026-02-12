@@ -4920,7 +4920,7 @@
     <!-- IndexedDB & Sync Services -->
     <script type="module">
         // Import our local-first services
-        import { initDB, addRecord, getRecord, updateRecord, deleteRecord, getAllRecords, queryByIndex, queueSync } from './src/services/db.js';
+        import { initDB, addRecord, getRecord, updateRecord, deleteRecord, getAllRecords, queryByIndex, queueSync, getDBStats } from './src/services/db.js';
         import { initSupabase } from './src/services/config.js';
         import { login, register, logout, refreshToken, isAuthenticated, getAuthToken } from './src/services/auth.js';
         import { getSyncManager, initSyncManager, stopSyncManager } from './src/services/sync.js';
@@ -4990,7 +4990,7 @@
 
         // Expose services to global scope for existing SPA code to use
         window.FamilyTogetherServices = {
-            db: { initDB, addRecord, getRecord, updateRecord, deleteRecord, getAllRecords, queryByIndex, queueSync },
+            db: { initDB, addRecord, getRecord, updateRecord, deleteRecord, getAllRecords, queryByIndex, queueSync, getDBStats },
             auth: { login, register, logout, refreshToken, isAuthenticated, getAuthToken },
             sync: {
                 getSyncManager,
