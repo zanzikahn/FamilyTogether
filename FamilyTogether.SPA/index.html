@@ -4923,7 +4923,7 @@
         import { initDB, addRecord, getRecord, updateRecord, deleteRecord, getAllRecords, queryByIndex, queueSync } from './src/services/db.js';
         import { initSupabase } from './src/services/config.js';
         import { login, register, logout, refreshToken, isAuthenticated, getAuthToken } from './src/services/auth.js';
-        import { initSyncManager, startSync, stopSync, manualSync } from './src/services/sync.js';
+        import { getSyncManager, initSyncManager, stopSyncManager } from './src/services/sync.js';
         import {
             initMigration,
             getFamilyMembers,
@@ -4991,7 +4991,14 @@
         window.FamilyTogetherServices = {
             db: { initDB, addRecord, getRecord, updateRecord, deleteRecord, getAllRecords, queryByIndex, queueSync },
             auth: { login, register, logout, refreshToken, isAuthenticated, getAuthToken },
-            sync: { initSyncManager, startSync, stopSync, manualSync },
+            sync: {
+                getSyncManager,
+                initSyncManager,
+                stopSyncManager,
+                // Convenience methods
+                forceSync: () => getSyncManager().forceSync(),
+                getSyncStatus: () => getSyncManager().getSyncStatus()
+            },
             migration: {
                 getFamilyMembers,
                 getTasks,

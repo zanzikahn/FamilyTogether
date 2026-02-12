@@ -41,7 +41,8 @@
       "Bash(timeout 10 bash -c \"while true; do curl -s https://charming-magic-production.up.railway.app/health | grep -q ''1.0.1-net8'' && echo ''New version detected!'' && break || echo ''Still old version, waiting...''; sleep 2; done\")",
       "Bash(railway list:*)",
       "Bash(timeout:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(cd:*)"
     ],
     "deny": [],
     "ask": []
