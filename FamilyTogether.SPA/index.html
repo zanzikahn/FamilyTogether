@@ -553,6 +553,9 @@
             color: #92400e;
         }
     </style>
+
+    <!-- Supabase JavaScript Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div id="app"></div>
@@ -4912,6 +4915,240 @@
 
         // Initial render
         safeRender();
+    </script>
+
+    <!-- IndexedDB & Sync Services -->
+    <script type="module">
+        // Import our local-first services
+        import { initDB, addRecord, getRecord, updateRecord, deleteRecord, getAllRecords, queryByIndex, queueSync } from './src/services/db.js';
+        import { initSupabase } from './src/services/config.js';
+        import { login, register, logout, refreshToken, isAuthenticated, getAuthToken } from './src/services/auth.js';
+        import { initSyncManager, startSync, stopSync, manualSync } from './src/services/sync.js';
+        import {
+            initMigration,
+            getFamilyMembers,
+            getTasks,
+            getRewards,
+            saveFamilyMember,
+            saveTask,
+            saveReward,
+            getCurrentFamilyId
+        } from './src/services/migration.js';
+
+        // Initialize services on page load
+        async function initializeServices() {
+            try {
+                console.log('🚀 Initializing FamilyTogether services...');
+
+                // 1. Initialize Supabase
+                const supabaseClient = initSupabase();
+                if (!supabaseClient) {
+                    console.error('❌ Failed to initialize Supabase');
+                    return false;
+                }
+
+                // 2. Initialize IndexedDB
+                await initDB();
+                console.log('✅ IndexedDB initialized');
+
+                // 3. Migrate localStorage data to IndexedDB (first-time only)
+                const migrationResult = await initMigration();
+                if (migrationResult.success) {
+                    console.log('✅ Migration completed', migrationResult);
+                } else {
+                    console.warn('⚠️ Migration had issues', migrationResult);
+                }
+
+                // 4. Check if user is authenticated
+                const authenticated = isAuthenticated();
+                if (authenticated) {
+                    console.log('✅ User is authenticated, starting sync manager');
+
+                    // 5. Initialize sync manager for authenticated users
+                    initSyncManager();
+                    startSync();
+                } else {
+                    console.log('ℹ️ User not authenticated, sync manager not started');
+                }
+
+                console.log('✅ All services initialized successfully');
+                return true;
+
+            } catch (error) {
+                console.error('❌ Service initialization failed:', error);
+                return false;
+            }
+        }
+
+        // Initialize services when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeServices);
+        } else {
+            initializeServices();
+        }
+
+        // Expose services to global scope for existing SPA code to use
+        window.FamilyTogetherServices = {
+            db: { initDB, addRecord, getRecord, updateRecord, deleteRecord, getAllRecords, queryByIndex, queueSync },
+            auth: { login, register, logout, refreshToken, isAuthenticated, getAuthToken },
+            sync: { initSyncManager, startSync, stopSync, manualSync },
+            migration: {
+                getFamilyMembers,
+                getTasks,
+                getRewards,
+                saveFamilyMember,
+                saveTask,
+                saveReward,
+                getCurrentFamilyId
+            }
+        };
+
+        console.log('📦 FamilyTogether services exposed on window.FamilyTogetherServices');
+
+        // Helper functions to bridge between old localStorage code and new IndexedDB
+        // These make it easy for the existing code to gradually migrate to IndexedDB
+
+        /**
+         * Load data from IndexedDB into appState (async version of loadFromStorage)
+         * Call this during app initialization
+         */
+        async function loadFromIndexedDB() {
+            try {
+                console.log('📥 Loading data from IndexedDB...');
+
+                // Use migration adapter functions to load data
+                const members = await window.FamilyTogetherServices.migration.getFamilyMembers();
+                const tasks = await window.FamilyTogetherServices.migration.getTasks();
+                const rewards = await window.FamilyTogetherServices.migration.getRewards();
+
+                if (typeof appState !== 'undefined') {
+                    appState.familyMembers = members || appState.familyMembers;
+                    appState.tasks = tasks || appState.tasks;
+                    appState.rewards = rewards || appState.rewards;
+
+                    console.log('✅ Loaded from IndexedDB:', {
+                        members: members.length,
+                        tasks: tasks.length,
+                        rewards: rewards.length
+                    });
+
+                    // Trigger UI update if render function exists
+                    if (typeof safeRender === 'function') {
+                        safeRender();
+                    }
+
+                    return true;
+                } else {
+                    console.warn('⚠️ appState not defined yet, skipping load');
+                    return false;
+                }
+            } catch (error) {
+                console.error('❌ Failed to load from IndexedDB:', error);
+                return false;
+            }
+        }
+
+        /**
+         * Save a family member to IndexedDB
+         * @param {Object} member - Member data in old format
+         */
+        async function saveFamilyMemberToIndexedDB(member) {
+            try {
+                await window.FamilyTogetherServices.migration.saveFamilyMember(member);
+                console.log('✅ Saved family member to IndexedDB:', member.name);
+            } catch (error) {
+                console.error('❌ Failed to save family member:', error);
+                throw error;
+            }
+        }
+
+        /**
+         * Save a task to IndexedDB
+         * @param {Object} task - Task data in old format
+         */
+        async function saveTaskToIndexedDB(task) {
+            try {
+                await window.FamilyTogetherServices.migration.saveTask(task);
+                console.log('✅ Saved task to IndexedDB:', task.name);
+            } catch (error) {
+                console.error('❌ Failed to save task:', error);
+                throw error;
+            }
+        }
+
+        /**
+         * Save a reward to IndexedDB
+         * @param {Object} reward - Reward data in old format
+         */
+        async function saveRewardToIndexedDB(reward) {
+            try {
+                await window.FamilyTogetherServices.migration.saveReward(reward);
+                console.log('✅ Saved reward to IndexedDB:', reward.name);
+            } catch (error) {
+                console.error('❌ Failed to save reward:', error);
+                throw error;
+            }
+        }
+
+        /**
+         * Save all app state to IndexedDB (batch operation)
+         * This replaces the old saveToStorage() function
+         */
+        async function saveAllToIndexedDB() {
+            try {
+                if (typeof appState === 'undefined') {
+                    console.warn('⚠️ appState not defined, skipping save');
+                    return { success: false };
+                }
+
+                console.log('💾 Saving all data to IndexedDB...');
+
+                // Save all family members
+                if (appState.familyMembers) {
+                    for (const member of appState.familyMembers) {
+                        await window.FamilyTogetherServices.migration.saveFamilyMember(member);
+                    }
+                }
+
+                // Save all tasks
+                if (appState.tasks) {
+                    for (const task of appState.tasks) {
+                        await window.FamilyTogetherServices.migration.saveTask(task);
+                    }
+                }
+
+                // Save all rewards
+                if (appState.rewards) {
+                    for (const reward of appState.rewards) {
+                        await window.FamilyTogetherServices.migration.saveReward(reward);
+                    }
+                }
+
+                console.log('✅ All data saved to IndexedDB');
+                return { success: true };
+
+            } catch (error) {
+                console.error('❌ Failed to save to IndexedDB:', error);
+                return { success: false, error: error.message };
+            }
+        }
+
+        // Expose helper functions globally for the existing code to use
+        window.FamilyTogetherIndexedDB = {
+            load: loadFromIndexedDB,
+            saveMember: saveFamilyMemberToIndexedDB,
+            saveTask: saveTaskToIndexedDB,
+            saveReward: saveRewardToIndexedDB,
+            saveAll: saveAllToIndexedDB
+        };
+
+        console.log('💾 IndexedDB helper functions exposed on window.FamilyTogetherIndexedDB');
+
+        // Auto-load data from IndexedDB after services are initialized
+        // Wait a bit for appState to be defined
+        setTimeout(async () => {
+            await loadFromIndexedDB();
+        }, 500);
     </script>
 </body>
 </html>

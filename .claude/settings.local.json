@@ -27,7 +27,21 @@
       "Bash(git config:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(railway whoami:*)",
+      "Bash(railway tokens:*)",
+      "Read(//c/Users/Zanzi/TOOLS/FamilyTogether/Version_SaaS/**)",
+      "Bash(dotnet list:*)",
+      "Bash(dotnet restore)",
+      "Bash(dotnet build:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(railway redeploy:*)",
+      "Bash(railway variables:*)",
+      "Bash(timeout 10 bash -c \"while true; do curl -s https://charming-magic-production.up.railway.app/health | grep -q ''1.0.1-net8'' && echo ''New version detected!'' && break || echo ''Still old version, waiting...''; sleep 2; done\")",
+      "Bash(railway list:*)",
+      "Bash(timeout:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []
