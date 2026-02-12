@@ -169,7 +169,9 @@ app.MapGet("/health", () => Results.Ok(new
     status = "healthy",
     timestamp = DateTime.UtcNow,
     environment = app.Environment.EnvironmentName,
-    version = "1.0.0"
+    version = "1.0.1-net8",
+    framework = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
+    buildTimestamp = "2026-02-12T13:17:00Z"
 })).AllowAnonymous();
 
 app.Run();
