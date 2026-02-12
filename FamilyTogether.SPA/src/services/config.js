@@ -6,12 +6,12 @@
 // Supabase Configuration
 export const SUPABASE_CONFIG = {
     url: 'https://yjqkttueeqwskwukmham.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqcWt0dHVlZXF3c2t3dWttaGFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkxNTE4NzMsImV4cCI6MjA1NDcyNzg3M30.JmOEMnQWp3NaZ7iF9_ORBPg5mVJRPgPj-8Y5u4kOF2s'
+    publishableKey: 'sb_publishable__3P5McO6Gnc4mQQ4ZPUHdw_J0xoJGhO' // New publishable key format (replaces anonKey)
 };
 
 // API Configuration
 export const API_CONFIG = {
-    production: 'https://charming-magic-production.up.railway.app',
+    production: 'https://familytogether-production.up.railway.app', // Updated Railway URL
     local: 'https://localhost:7290',
     timeout: 30000 // 30 seconds
 };
@@ -65,7 +65,7 @@ export function initSupabase() {
     try {
         const client = window.supabase.createClient(
             SUPABASE_CONFIG.url,
-            SUPABASE_CONFIG.anonKey
+            SUPABASE_CONFIG.publishableKey
         );
 
         window.supabaseClient = client;
