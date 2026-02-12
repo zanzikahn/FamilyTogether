@@ -4926,6 +4926,7 @@
         import { getSyncManager, initSyncManager, stopSyncManager } from './src/services/sync.js';
         import {
             initMigration,
+            resetMigration,
             getFamilyMembers,
             getTasks,
             getRewards,
@@ -5006,7 +5007,8 @@
                 saveFamilyMember,
                 saveTask,
                 saveReward,
-                getCurrentFamilyId
+                getCurrentFamilyId,
+                resetMigration  // For testing/debugging
             }
         };
 
@@ -5152,10 +5154,19 @@
         console.log('💾 IndexedDB helper functions exposed on window.FamilyTogetherIndexedDB');
 
         // Auto-load data from IndexedDB after services are initialized
-        // Wait a bit for appState to be defined
+        // Only load if migration was successful and actually migrated data
         setTimeout(async () => {
-            await loadFromIndexedDB();
-        }, 500);
+            // Check if we have data in IndexedDB before loading
+            const stats = await window.FamilyTogetherServices.db.getDBStats();
+            const hasData = stats.families > 0 || stats.members > 0 || stats.tasks > 0 || stats.rewards > 0;
+
+            if (hasData) {
+                console.log('📊 IndexedDB has data, loading...');
+                await loadFromIndexedDB();
+            } else {
+                console.log('ℹ️ IndexedDB is empty, keeping existing appState');
+            }
+        }, 1000);
     </script>
 </body>
 </html>

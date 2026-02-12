@@ -47,16 +47,24 @@ export async function migrateLocalStorageToIndexedDB() {
         // Get localStorage data
         const stored = localStorage.getItem(STORAGE_KEY);
         if (!stored) {
-            console.log('ℹ️ Migration: No localStorage data found, skipping (will retry later if data appears)');
-            // DON'T mark as completed - allow future migration if data appears
-            return { success: true, noData: true, skipped: false };
+            console.log('ℹ️ Migration: No localStorage data found, marking as completed');
+            markMigrationCompleted();
+            return { success: true, noData: true };
         }
 
         const oldData = JSON.parse(stored);
+
+        // Log the structure to understand the data format
+        const tasksCount = Array.isArray(oldData.tasks)
+            ? oldData.tasks.length
+            : (oldData.tasks ? Object.keys(oldData.tasks).length : 0);
+
         console.log('📦 Migration: Found localStorage data', {
             familyMembers: oldData.familyMembers?.length || 0,
-            tasks: oldData.tasks?.length || 0,
-            rewards: oldData.rewards?.length || 0
+            tasks: tasksCount,
+            tasksIsArray: Array.isArray(oldData.tasks),
+            rewards: oldData.rewards?.length || 0,
+            settings: oldData.settings ? 'present' : 'missing'
         });
 
         let migrationStats = {
@@ -115,7 +123,12 @@ export async function migrateLocalStorageToIndexedDB() {
 
         // Migrate tasks
         if (oldData.tasks && familyId) {
-            for (const oldTask of oldData.tasks) {
+            // Convert tasks to array if it's an object (old format had tasks as object with IDs as keys)
+            const tasksArray = Array.isArray(oldData.tasks)
+                ? oldData.tasks
+                : Object.values(oldData.tasks);
+
+            for (const oldTask of tasksArray) {
                 try {
                     const task = {
                         id: oldTask.id || generateUUID(),
@@ -394,6 +407,23 @@ export async function saveReward(reward) {
 export async function getCurrentFamilyId() {
     const families = await getAllRecords('families');
     return families[0]?.id || null;
+}
+
+/**
+ * Force reset migration (for testing)
+ * WARNING: This will delete all IndexedDB data and re-run migration
+ */
+export async function resetMigration() {
+    console.warn('⚠️ Resetting migration - this will clear all IndexedDB data');
+
+    // Clear migration flag
+    localStorage.removeItem(MIGRATION_FLAG_KEY);
+
+    // Clear IndexedDB
+    const { clearAllData } = await import('./db.js');
+    await clearAllData();
+
+    console.log('✅ Migration reset complete. Reload page to re-run migration.');
 }
 
 /**
