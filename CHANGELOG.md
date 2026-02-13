@@ -236,7 +236,7 @@ To enable automatic Railway deployments via GitHub Actions, add the Railway toke
   - Updated Supabase section with new key format
   - Enhanced Railway deployment quirks section
 
-### Task 2.6: SPA Integration with IndexedDB ✅
+### Task 2.6A: SPA Service Setup ✅
 - [COMPLETED] Added Supabase CDN script to index.html (line 558)
 - [COMPLETED] Imported ES modules (db.js, api.js, auth.js, sync.js, config.js, migration.js)
 - [COMPLETED] Created Migration Service (migration.js - 380 lines)
@@ -263,6 +263,22 @@ To enable automatic Railway deployments via GitHub Actions, add the Railway toke
   - Developer debugging guide
   - Next steps for testing and deployment
 
+### Task 2.6B: UI Code Integration ✅
+- [COMPLETED] Modified saveToStorage() to save to IndexedDB (index.html line 1132-1138)
+  - After successful localStorage save, also calls saveAllToIndexedDB()
+  - Triggers adapter functions to convert data format
+  - Queues all changes for background sync
+  - Non-blocking (doesn't fail localStorage if IndexedDB fails)
+- [COMPLETED] Added family bootstrap on app startup (index.html line 5172-5183)
+  - Checks if family exists in IndexedDB on page load
+  - Creates default family if missing (prevents "No family found" errors)
+  - Uses appState.settings.familyName for family name
+  - Enables saveAll() to work immediately
+- [COMPLETED] User testing revealed integration gap (TEST_RESULTS.md)
+  - Services were built but not wired into existing UI
+  - IndexedDB remained empty despite UI changes
+  - Fixed by actually calling IndexedDB functions from save/load code
+
 ### Progress Summary
 **Phase 2 Progress**: 100% Complete ✅
 - ✅ Task 2.1: SPA Services Development (100%)
@@ -270,7 +286,8 @@ To enable automatic Railway deployments via GitHub Actions, add the Railway toke
 - ✅ Task 2.3: Railway Deployment (100%)
 - ✅ Task 2.4: SPA Configuration Updates (100%)
 - ✅ Task 2.5: Documentation (100%)
-- ✅ Task 2.6: SPA Integration (100%)
+- ✅ Task 2.6A: SPA Service Setup (100%)
+- ✅ Task 2.6B: UI Code Integration (100%)
 
 **Overall Project Progress**: ~45% Complete
 
@@ -301,6 +318,9 @@ To enable automatic Railway deployments via GitHub Actions, add the Railway toke
 6. **Data Migration**: Use adapter functions to convert between flat and normalized data structures
 7. **Progressive Enhancement**: Keep old localStorage as fallback during IndexedDB migration
 8. **Sync Metadata**: Always track last_modified, change_id, sync_version, is_deleted
+9. **Integration ≠ Exposure**: Exposing services on `window` object doesn't integrate them - must wire into existing code paths
+10. **Test Before Marking Complete**: User testing revealed integration gap that I should have caught
+11. **Phase Breakdown**: Complex integrations need sub-phases (2A: Build Services, 2B: Wire Services)
 
 ### Next Steps
 **Phase 2 Complete!** Ready for testing and deployment:
