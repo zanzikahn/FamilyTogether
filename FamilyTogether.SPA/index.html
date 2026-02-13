@@ -1128,6 +1128,14 @@
                 if (result.success) {
                     lastSaveTimestamp = Date.now();
                     console.log('✅ Save completed successfully');
+
+                    // PHASE 2 INTEGRATION: Also save to IndexedDB
+                    if (window.FamilyTogetherIndexedDB && window.FamilyTogetherIndexedDB.saveAll) {
+                        window.FamilyTogetherIndexedDB.saveAll().catch(err => {
+                            console.warn('⚠️ IndexedDB save failed (non-critical):', err.message);
+                            // Don't fail the whole save if IndexedDB fails
+                        });
+                    }
                 }
 
                 return result;
@@ -5156,15 +5164,34 @@
         // Auto-load data from IndexedDB after services are initialized
         // Only load if migration was successful and actually migrated data
         setTimeout(async () => {
-            // Check if we have data in IndexedDB before loading
-            const stats = await window.FamilyTogetherServices.db.getDBStats();
-            const hasData = stats.families > 0 || stats.members > 0 || stats.tasks > 0 || stats.rewards > 0;
+            try {
+                // PHASE 2 INTEGRATION: Bootstrap family if needed
+                const stats = await window.FamilyTogetherServices.db.getDBStats();
 
-            if (hasData) {
-                console.log('📊 IndexedDB has data, loading...');
-                await loadFromIndexedDB();
-            } else {
-                console.log('ℹ️ IndexedDB is empty, keeping existing appState');
+                // If no family exists, create one
+                if (stats.families === 0) {
+                    console.log('🏗️ No family found in IndexedDB, creating default family...');
+                    const { generateUUID, addRecord } = window.FamilyTogetherServices.db;
+                    const family = {
+                        id: generateUUID(),
+                        name: appState.settings?.familyName || 'My Family',
+                        created_by: null,
+                        created_at: Date.now()
+                    };
+                    await addRecord('families', family);
+                    console.log('✅ Default family created:', family.id);
+                }
+
+                const hasData = stats.families > 0 || stats.members > 0 || stats.tasks > 0 || stats.rewards > 0;
+
+                if (hasData) {
+                    console.log('📊 IndexedDB has data, loading...');
+                    await loadFromIndexedDB();
+                } else {
+                    console.log('ℹ️ IndexedDB is empty, keeping existing appState');
+                }
+            } catch (error) {
+                console.error('❌ IndexedDB bootstrap failed:', error);
             }
         }, 1000);
     </script>
